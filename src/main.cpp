@@ -4,7 +4,6 @@
 #include <SPI.h>
 #include <PN532_SPI.h>
 #include "PN532.h"
-#include "OneButton.h"
 
 PN532_SPI pn532spi(SPI, 10);
 PN532 nfc(pn532spi);
@@ -12,7 +11,11 @@ uint8_t uid[] = {0, 0, 0, 0, 0, 0, 0};
 uint8_t uidLength;
 String uidString;
 
-OneButton btn3(3, true);
+unsigned long previousMillis = 0; 
+unsigned long previousMillisButton = 0; 
+
+//Button
+int button = 2;
 
 LiquidCrystal_I2C lcd(0x27, 20, 4);
 
@@ -37,7 +40,8 @@ void printLineFour(String text)
   lcd.print(text);
 }
 
-static void handleClick() {
+static void handleClick()
+{
   Serial.println("Clicked!");
 }
 
@@ -49,7 +53,8 @@ void setup()
 
   nfc.begin();
 
-  btn3.attachClick(handleClick);
+   pinMode(button, INPUT);
+  digitalWrite(button, HIGH); //activate arduino internal pull up
 
   uint32_t versiondata = nfc.getFirmwareVersion();
   if (!versiondata)
@@ -70,30 +75,37 @@ void setup()
 
 void loop()
 {
-
   boolean success;
-  unsigned long test = millis();
-  success = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, &uid[0], &uidLength);
-  unsigned long test3 test millis();
+  // success = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, &uid[0], &uidLength);
+  success =  nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, &uid[0], &uidLength, 50); //timeout 0 means no timeout - will block forever.
 
   if (success)
   {
-    for (uint8_t i = 0; i < uidLength; i++)
+    unsigned long currentMillis = millis();
+    if (currentMillis - previousMillis >= 1000)
     {
+      // save the last time you blinked the LED
+      previousMillis = currentMillis;
+
+      for (uint8_t i = 0; i < uidLength; i++)
+      {
         uidString += String(uid[i], HEX) + " ";
+      }
+      uidString.toUpperCase();
+      printLineFour(uidString);
+      Serial.println(uidString);
+      uidString = "";
     }
-    uidString.toUpperCase();
-    printLineFour(uidString);
-    uidString = "";
-
-    // delay(1000);
   }
-  btn3.tick();
+
+if (digitalRead(button)==LOW){
+      unsigned long currentMillisButton = millis();
+    if (currentMillisButton - previousMillisButton >= 100)
+    {
+      previousMillisButton = currentMillisButton;
+    Serial.println("Button is pressed");
+    printLineFour("Scan uw tag");
+
+    }
+  }
 }
-
-
-// void run(){
-//   btn3.tick();
-// }
-
-// std::thread thread_obj(btntick);
